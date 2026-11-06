@@ -254,7 +254,7 @@ public class MainActivity extends Activity {
         boolean isEmpty(){return path.isEmpty()&&saved==null;}
         Bitmap bitmap(){Bitmap b=Bitmap.createBitmap(Math.max(1,getWidth()),Math.max(1,getHeight()),Bitmap.Config.ARGB_8888);Canvas c=new Canvas(b);if(saved!=null)c.drawBitmap(saved,null,new Rect(0,0,b.getWidth(),b.getHeight()),null);c.drawPath(path,paint);return b;}
     }
-    Bitmap transparentSignature(Bitmap source){if(source==null)return null;Bitmap out=source.copy(Bitmap.Config.ARGB_8888,true);int w=out.getWidth(),h=out.getHeight();int[] px=new int[w*h];out.getPixels(px,0,w,0,0,w,h);for(int i=0;i<px.length;i++){int color=px[i],r=Color.red(color),g=Color.green(color),b=Color.blue(color);int lum=(r*299+g*587+b*114)/1000;int alpha=Math.max(0,255-lum);if(alpha<10)alpha=0;px[i]=Color.argb(alpha,0,0,0);}out.setPixels(px,0,w,0,0,w,h);return out;}
+    Bitmap transparentSignature(Bitmap source){if(source==null)return null;Bitmap out=source.copy(Bitmap.Config.ARGB_8888,true);int w=out.getWidth(),h=out.getHeight();int[] px=new int[w*h];out.getPixels(px,0,w,0,0,w,h);for(int i=0;i<px.length;i++){int color=px[i],r=Color.red(color),g=Color.green(color),b=Color.blue(color);int lum=(r*299+g*587+b*114)/1000;int alpha=Color.alpha(color)*(255-lum)/255;if(alpha<10)alpha=0;px[i]=Color.argb(alpha,0,0,0);}out.setPixels(px,0,w,0,0,w,h);return out;}
     class AnnotationView extends View {
         static final int FREE=0, ARROW=1, CIRCLE=2, RECT=3, TEXT=4;
         class Mark { int type; float x1,y1,x2,y2; String label=""; Path path=new Path(); }
