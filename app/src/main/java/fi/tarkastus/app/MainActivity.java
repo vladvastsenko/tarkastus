@@ -8,6 +8,7 @@ import android.graphics.pdf.PdfDocument;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.provider.OpenableColumns;
+import android.provider.MediaStore;
 import android.view.*;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.*;
@@ -64,7 +65,7 @@ public class MainActivity extends Activity {
         LinearLayout logoRow=new LinearLayout(this); logoRow.setGravity(Gravity.CENTER_VERTICAL); form.addView(logoRow);
         logoPreview=new ImageView(this); logoPreview.setLayoutParams(new LinearLayout.LayoutParams(dp(90),dp(65))); logoPreview.setScaleType(ImageView.ScaleType.FIT_CENTER); logoRow.addView(logoPreview);
         logoStatus=text("Logo ei ole vielä valittu",13,false); logoRow.addView(logoStatus,new LinearLayout.LayoutParams(0,-2,1));
-        form.addView(button("Valitse logo",()->pickImage(-1)));
+        form.addView(button("Valitse logo",()->pickGallery(-1)));
         section("Allekirjoitus"); signatureView=new SignatureView(this); signatureView.setBackground(bg(Color.rgb(246,248,250))); form.addView(signatureView,new LinearLayout.LayoutParams(-1,dp(130)));
         form.addView(button("Tyhjennä allekirjoitus",()->signatureView.clear()));
         savedStatus=text("Luonnos tallennetaan tähän puhelimeen.",12,false); form.addView(savedStatus);
@@ -89,14 +90,88 @@ public class MainActivity extends Activity {
                 EditText comment=miniField("Valokuvan kommentti",item.comment); photoCard.addView(comment); comment.addTextChangedListener(watcher(v->item.comment=v));
                 LinearLayout pr=new LinearLayout(this); photoCard.addView(pr); Button mark=button("Merkitse kuva",()->editPhoto(item)); pr.addView(mark,new LinearLayout.LayoutParams(0,-2,1)); Button removePhoto=button("Poista kuva",()->{d.photos.remove(photoIndex);renderDefects();}); pr.addView(removePhoto,new LinearLayout.LayoutParams(0,-2,1));
             }
-            LinearLayout actions=new LinearLayout(this); card.addView(actions); Button photo=button("+ Lisää valokuvia",()->pickImage(index)); actions.addView(photo,new LinearLayout.LayoutParams(0,-2,1)); Button remove=button("Poista havainto",()->{defects.remove(index);renderDefects();}); actions.addView(remove,new LinearLayout.LayoutParams(0,-2,1));
+            LinearLayout actions=new LinearLayout(this); card.addView(actions);
+            Button camera=button("Ota kuva",()->takePhoto(index)); actions.addView(camera,new LinearLayout.LayoutParams(0,-2,1));
+            Button gallery=button("Galleriasta",()->pickGallery(index)); actions.addView(gallery,new LinearLayout.LayoutParams(0,-2,1));
+            Button remove=button("Poista",()->{defects.remove(index);renderDefects();}); actions.addView(remove,new LinearLayout.LayoutParams(0,-2,1));
         }
     }
     interface TextChanged{void changed(String s);} TextWatcher watcher(TextChanged c){return new TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int count,int after){} public void onTextChanged(CharSequence s,int st,int before,int count){c.changed(s.toString());} public void afterTextChanged(Editable e){}};}
     EditText miniField(String hint,String value){EditText e=new EditText(this);e.setText(value);e.setHint(hint);e.setTextSize(14);e.setPadding(dp(8),dp(6),dp(8),dp(6));return e;}
     int pickTarget=-1;
-    void pickImage(int target){pickTarget=target; Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("image/*");i.addCategory(Intent.CATEGORY_OPENABLE);if(target>=0)i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);startActivityForResult(i, target==-1?10:11);}
-    @Override protected void onActivityResult(int req,int res,Intent data){super.onActivityResult(req,res,data);if(res!=RESULT_OK||data==null)return;try{if(req==10){if(data.getData()==null)return;logoBitmap=decode(data.getData());logoPreview.setImageBitmap(logoBitmap);logoStatus.setText("Logo valittu");}else if(req==11&&pickTarget>=0&&pickTarget<defects.size()){Defect d=defects.get(pickTarget);if(data.getClipData()!=null){for(int i=0;i<data.getClipData().getItemCount();i++){Bitmap b=decode(data.getClipData().getItemAt(i).getUri());if(b!=null){PhotoItem item=new PhotoItem();item.original=b;d.photos.add(item);}}}else if(data.getData()!=null){Bitmap b=decode(data.getData());if(b!=null){PhotoItem item=new PhotoItem();item.original=b;d.photos.add(item);}}renderDefects();}}catch(Exception e){toast("Kuvan avaaminen epäonnistui");}}
+    File pendingCameraFile;
+    int pendingCameraTarget=-1;
+
+    void pickGallery(int target){
+        pickTarget=target;
+        Intent i;
+        if(Build.VERSION.SDK_INT>=33){
+            i=new Intent(MediaStore.ACTION_PICK_IMAGES);
+            i.setType("image/*");
+            i.putExtra(MediaStore.EXTRA_PICK_IMAGES_MAX,20);
+        }else{
+            i=new Intent(Intent.ACTION_GET_CONTENT);
+            i.setType("image/*");
+            i.addCategory(Intent.CATEGORY_OPENABLE);
+            i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);
+        }
+        startActivityForResult(i,target==-1?10:11);
+    }
+
+    void takePhoto(int target){
+        if(target<0||target>=defects.size())return;
+        try{
+            File dir=getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+            if(dir==null)dir=getCacheDir();
+            if(!dir.exists())dir.mkdirs();
+            pendingCameraFile=File.createTempFile("tarkastus_photo_",".jpg",dir);
+            pendingCameraTarget=target;
+            Uri output=androidx.core.content.FileProvider.getUriForFile(this,getPackageName()+".provider",pendingCameraFile);
+            Intent camera=new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            camera.putExtra(MediaStore.EXTRA_OUTPUT,output);
+            camera.setClipData(ClipData.newRawUri("Tarkastus photo",output));
+            camera.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            startActivityForResult(camera,12);
+        }catch(Exception e){
+            if(pendingCameraFile!=null)pendingCameraFile.delete();
+            pendingCameraFile=null;pendingCameraTarget=-1;
+            toast("Kameran avaaminen epäonnistui: "+e.getMessage());
+        }
+    }
+
+    void addPhoto(Defect d,Bitmap bitmap){
+        if(bitmap==null)return;
+        PhotoItem item=new PhotoItem();item.original=bitmap;d.photos.add(item);
+    }
+
+    @Override protected void onActivityResult(int req,int res,Intent data){
+        super.onActivityResult(req,res,data);
+        if(req==12){
+            File captured=pendingCameraFile;int target=pendingCameraTarget;
+            pendingCameraFile=null;pendingCameraTarget=-1;
+            if(res==RESULT_OK&&captured!=null&&captured.exists()&&captured.length()>0&&target>=0&&target<defects.size()){
+                try{Bitmap b=decode(Uri.fromFile(captured));addPhoto(defects.get(target),b);renderDefects();}
+                catch(Exception e){toast("Kuvan avaaminen epäonnistui");}
+            }else if(res==RESULT_OK){toast("Kuvaa ei saatu tallennettua");}
+            if(captured!=null)captured.delete();
+            return;
+        }
+        if(res!=RESULT_OK||data==null)return;
+        try{
+            if(req==10){
+                Uri selected=data.getData();
+                if(selected==null&&data.getClipData()!=null)selected=data.getClipData().getItemAt(0).getUri();
+                if(selected==null)return;
+                logoBitmap=decode(selected);logoPreview.setImageBitmap(logoBitmap);logoStatus.setText("Logo valittu");
+            }else if(req==11&&pickTarget>=0&&pickTarget<defects.size()){
+                Defect d=defects.get(pickTarget);
+                if(data.getClipData()!=null){
+                    for(int i=0;i<data.getClipData().getItemCount();i++)addPhoto(d,decode(data.getClipData().getItemAt(i).getUri()));
+                }else if(data.getData()!=null)addPhoto(d,decode(data.getData()));
+                renderDefects();
+            }
+        }catch(Exception e){toast("Kuvan avaaminen epäonnistui: "+e.getMessage());}
+    }
     Bitmap decode(Uri u)throws Exception{InputStream in=getContentResolver().openInputStream(u);Bitmap b=BitmapFactory.decodeStream(in);if(in!=null)in.close();if(b!=null&&b.getWidth()>1800){float f=1800f/b.getWidth();b=Bitmap.createScaledBitmap(b,1800,(int)(b.getHeight()*f),true);}return b;}
     void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
     void editPhoto(PhotoItem photo){
