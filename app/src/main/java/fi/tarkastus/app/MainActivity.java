@@ -78,6 +78,8 @@ public class MainActivity extends Activity {
         form.addView(button("Tyhjennä allekirjoitus",()->signatureView.clear()));
         savedStatus=text("Luonnos tallennetaan tähän puhelimeen.",12,false); form.addView(savedStatus);
         form.addView(button("Uusi raportti",this::newReport));
+        form.addView(button("Tallenna nykyinen raportti malliksi",this::saveAsTemplate));
+        form.addView(button("Käytä / hallitse malleja",this::showTemplates));
         form.addView(button("Tallenna luonnos",this::saveDraft));
         form.addView(button("Tallenna raportti arkistoon",this::archiveReport));
         form.addView(button("Avaa arkisto",this::showArchive));
@@ -218,6 +220,54 @@ public class MainActivity extends Activity {
     void savePng(Bitmap b,File f)throws Exception{FileOutputStream o=new FileOutputStream(f);b.compress(Bitmap.CompressFormat.PNG,100,o);o.close();}
     void saveDraft(){try{getSharedPreferences("draft",0).edit().putString("json",toJson().toString()).apply();savedStatus.setText("Luonnos tallennettu tähän puhelimeen.");toast("Luonnos tallennettu");}catch(Exception e){toast("Tallennus epäonnistui");}}
     void newReport(){new AlertDialog.Builder(this).setTitle("Uusi raportti?").setMessage("Nykyinen raportti jää talteen vain, jos tallennat sen ensin arkistoon. Aloitetaanko tyhjä raportti?").setNegativeButton("Peruuta",null).setPositiveButton("Aloita",(d,w)->{title.setText("Yleinen tarkastusraportti");object.setText("");address.setText("");customer.setText("");contractor.setText("");inspector.setText("");dateField.setText(new SimpleDateFormat("dd.MM.yyyy",Locale.forLanguageTag("fi-FI")).format(new Date()));scope.setText("");generalNotes.setText("");conclusion.setText("");footerText.setText("Tämä tarkastusraportti on laadittu havaintojen perusteella.");customFields.clear();renderCustomFields();defects.clear();renderDefects();signatureView.clear();getSharedPreferences("draft",0).edit().remove("json").apply();savedStatus.setText("Uusi raportti");}).show();}
+    File templatesDir(){File d=new File(getFilesDir(),"templates");if(!d.exists())d.mkdirs();return d;}
+    org.json.JSONArray readTemplates(){try{return new org.json.JSONArray(getSharedPreferences("templates",0).getString("items","[]"));}catch(Exception e){return new org.json.JSONArray();}}
+    void writeTemplates(org.json.JSONArray a){getSharedPreferences("templates",0).edit().putString("items",a.toString()).apply();}
+    void saveAsTemplate(){
+        EditText name=new EditText(this);name.setSingleLine(true);name.setHint("Mallin nimi");name.setText(val(title).isEmpty()?"Uusi mallipohja":val(title));
+        new AlertDialog.Builder(this).setTitle("Tallenna raporttipohjaksi").setMessage("Malliin tallennetaan raportin rakenne, otsikko, oletustiedot, omat kentät, logo ja alatunniste. Havaintoja, valokuvia, allekirjoitusta ja kohdekohtaisia tietoja ei tallenneta.").setView(name).setNegativeButton("Peruuta",null).setPositiveButton("Tallenna",(d,w)->{
+            String label=name.getText().toString().trim();if(label.isEmpty()){toast("Anna mallille nimi");return;}
+            try{
+                String id=String.valueOf(System.currentTimeMillis());org.json.JSONObject t=new org.json.JSONObject();
+                t.put("id",id);t.put("name",label);t.put("title",val(title));t.put("customer",val(customer));t.put("contractor",val(contractor));t.put("inspector",val(inspector));t.put("scope",val(scope));t.put("footer",val(footerText));
+                org.json.JSONArray fields=new org.json.JSONArray();for(CustomField cf:customFields){if(!cf.name.trim().isEmpty()){org.json.JSONObject x=new org.json.JSONObject();x.put("name",cf.name);x.put("value","");fields.put(x);}}t.put("customFields",fields);
+                if(logoBitmap!=null){String logo="template_"+id+"_logo.png";savePng(logoBitmap,new File(templatesDir(),logo));t.put("logo",logo);}
+                org.json.JSONArray all=readTemplates();all.put(t);writeTemplates(all);toast("Mallipohja tallennettu");
+            }catch(Exception e){toast("Mallin tallennus epäonnistui: "+e.getMessage());}
+        }).show();
+    }
+    void showTemplates(){
+        org.json.JSONArray all=readTemplates();if(all.length()==0){toast("Tallennettuja mallipohjia ei ole");return;}
+        String[] labels=new String[all.length()];for(int i=0;i<all.length();i++){org.json.JSONObject t=all.optJSONObject(i);labels[i]=t==null?"Tuntematon malli":t.optString("name","Nimetön malli");}
+        new AlertDialog.Builder(this).setTitle("Raporttipohjat").setItems(labels,(dialog,which)->{
+            org.json.JSONObject selected=all.optJSONObject(which);if(selected==null)return;
+            new AlertDialog.Builder(this).setTitle(selected.optString("name","Raporttipohja")).setItems(new String[]{"Käytä mallia","Nimeä uudelleen","Poista"},(d,action)->{
+                if(action==0)new AlertDialog.Builder(this).setTitle("Käytetäänkö mallia?").setMessage("Nykyisen lomakkeen tiedot korvataan mallin asetuksilla. Tallentamattomat tiedot menetetään.").setNegativeButton("Peruuta",null).setPositiveButton("Käytä",(x,y)->applyTemplate(selected)).show();
+                else if(action==1)renameTemplate(selected);
+                else deleteTemplate(selected);
+            }).setNegativeButton("Sulje",null).show();
+        }).setNegativeButton("Sulje",null).show();
+    }
+    void applyTemplate(org.json.JSONObject t){
+        title.setText(t.optString("title","Yleinen tarkastusraportti"));object.setText("");address.setText("");customer.setText(t.optString("customer",""));contractor.setText(t.optString("contractor",""));inspector.setText(t.optString("inspector",""));
+        dateField.setText(new SimpleDateFormat("dd.MM.yyyy",Locale.forLanguageTag("fi-FI")).format(new Date()));scope.setText(t.optString("scope",""));generalNotes.setText("");conclusion.setText("");footerText.setText(t.optString("footer",""));
+        customFields.clear();org.json.JSONArray fields=t.optJSONArray("customFields");if(fields!=null)for(int i=0;i<fields.length();i++){org.json.JSONObject x=fields.optJSONObject(i);if(x!=null){CustomField cf=new CustomField();cf.name=x.optString("name");cf.value="";customFields.add(cf);}}renderCustomFields();
+        defects.clear();renderDefects();signatureView.clear();logoBitmap=null;logoPreview.setImageDrawable(null);logoStatus.setText("Logo ei ole vielä valittu");
+        String logo=t.optString("logo","");if(!logo.isEmpty()){File imageFile=new File(templatesDir(),logo);if(imageFile.exists()){logoBitmap=BitmapFactory.decodeFile(imageFile.getAbsolutePath());logoPreview.setImageBitmap(logoBitmap);logoStatus.setText("Logo valittu");}}
+        getSharedPreferences("draft",0).edit().remove("json").apply();savedStatus.setText("Mallipohja käytössä — täytä raportin tiedot");toast("Mallipohja otettu käyttöön");
+    }
+    void renameTemplate(org.json.JSONObject target){
+        EditText name=new EditText(this);name.setSingleLine(true);name.setText(target.optString("name",""));
+        new AlertDialog.Builder(this).setTitle("Nimeä mallipohja uudelleen").setView(name).setNegativeButton("Peruuta",null).setPositiveButton("Tallenna",(d,w)->{
+            String value=name.getText().toString().trim();if(value.isEmpty()){toast("Anna mallille nimi");return;}
+            try{org.json.JSONArray all=readTemplates();for(int i=0;i<all.length();i++){org.json.JSONObject t=all.optJSONObject(i);if(t!=null&&t.optString("id").equals(target.optString("id"))){t.put("name",value);break;}}writeTemplates(all);toast("Mallin nimi päivitetty");}catch(Exception e){toast("Nimeä ei voitu muuttaa");}
+        }).show();
+    }
+    void deleteTemplate(org.json.JSONObject target){
+        new AlertDialog.Builder(this).setTitle("Poistetaanko mallipohja?").setMessage(target.optString("name","")).setNegativeButton("Peruuta",null).setPositiveButton("Poista",(d,w)->{
+            org.json.JSONArray old=readTemplates(),next=new org.json.JSONArray();for(int i=0;i<old.length();i++){org.json.JSONObject t=old.optJSONObject(i);if(t==null)continue;if(t.optString("id").equals(target.optString("id"))){String logo=t.optString("logo","");if(!logo.isEmpty())new File(templatesDir(),logo).delete();}else next.put(t);}writeTemplates(next);toast("Mallipohja poistettu");
+        }).show();
+    }
     File archiveDir(){File d=new File(getFilesDir(),"reports");if(!d.exists())d.mkdirs();return d;}
     void archiveReport(){try{org.json.JSONObject j=toJson();String id=new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US).format(new Date());j.put("archiveId",id);String prefix="arch_"+id+"_";org.json.JSONArray arr=j.optJSONArray("defects");if(arr!=null)for(int i=0;i<arr.length();i++){org.json.JSONObject d=arr.getJSONObject(i);org.json.JSONArray phs=d.optJSONArray("photos");if(phs!=null)for(int k=0;k<phs.length();k++){org.json.JSONObject ph=phs.getJSONObject(k);copyArchiveAsset(ph,"original",prefix);copyArchiveAsset(ph,"annotated",prefix);}}copyArchiveAsset(j,"logo",prefix);copyArchiveAsset(j,"signature",prefix);File f=new File(archiveDir(),id+".json");FileOutputStream o=new FileOutputStream(f);o.write(j.toString(2).getBytes("UTF-8"));o.close();toast("Raportti tallennettu arkistoon");}catch(Exception e){toast("Arkistointi epäonnistui: "+e.getMessage());}}
     void copyArchiveAsset(org.json.JSONObject holder,String key,String prefix)throws Exception{String old=holder.optString(key,"");if(old.isEmpty())return;File src=new File(workDir,old);if(!src.exists())return;String next=prefix+old;File dst=new File(workDir,next);java.nio.file.Files.copy(src.toPath(),dst.toPath(),java.nio.file.StandardCopyOption.REPLACE_EXISTING);holder.put(key,next);}
