@@ -28,6 +28,7 @@ public class MainActivity extends Activity {
     Bitmap logoBitmap;
     ArrayList<Defect> defects = new ArrayList<>();
     String reportLanguage="fi";
+    boolean uiReady=false;
     ArrayList<CustomField> customFields = new ArrayList<>();
     SignatureView signatureView;
     static class CustomField { String name="", value=""; }
@@ -55,44 +56,45 @@ public class MainActivity extends Activity {
     void buildUi(){
         ScrollView scroll=new ScrollView(this); root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(dp(18),dp(18),dp(18),dp(30)); root.setBackgroundColor(Color.WHITE); scroll.addView(root); setContentView(scroll);
         TextView brand=text("TARKASTUS",24,true); brand.setTextColor(Color.rgb(25,54,82)); root.addView(brand);
-        root.addView(text("Yleinen tarkastusraportti",14,false));
+        root.addView(text(tr("Yleinen tarkastusraportti","Общий отчёт об инспекции","General inspection report"),14,false));
         form=new LinearLayout(this); form.setOrientation(LinearLayout.VERTICAL); root.addView(form);
-        section("Raportin tiedot");
-        section("Raportin kieli / Report language");
+        section(tr("Raportin tiedot","Данные отчёта","Report details"));
+        section(tr("Raportin kieli","Язык отчёта","Report language"));
         languageSpinner=new Spinner(this);
         String[] languageLabels={"Suomi","Русский","English"};
         languageSpinner.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,languageLabels));
         form.addView(languageSpinner);
         languageSpinner.setSelection(languageIndex(reportLanguage));
-        languageSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onItemSelected(android.widget.AdapterView<?> p,View v,int pos,long id){reportLanguage=pos==1?"ru":pos==2?"en":"fi";}public void onNothingSelected(android.widget.AdapterView<?> p){}});
-        title=field("Raportin otsikko"); title.setText("Yleinen tarkastusraportti");
-        object=field("Kohteen nimi"); address=field("Kohteen osoite"); customer=field("Tilaaja"); contractor=field("Urakoitsija"); inspector=field("Tarkastaja");
-        dateField=field("Tarkastuspäivä (pp.kk.vvvv)"); dateField.setText(new SimpleDateFormat("dd.MM.yyyy",Locale.forLanguageTag("fi-FI")).format(new Date()));
-        section("Tarkastuksen kuvaus"); scope=field("Tarkastuksen tarkoitus ja laajuus"); generalNotes=field("Yleiset huomiot");
-        section("Omat lisäkentät");
+        languageSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onItemSelected(android.widget.AdapterView<?> p,View v,int pos,long id){String next=pos==1?"ru":pos==2?"en":"fi";if(uiReady&&!next.equals(reportLanguage)){org.json.JSONObject snapshot=toJson();reportLanguage=next;buildUi();loadJson(snapshot);}else reportLanguage=next;}public void onNothingSelected(android.widget.AdapterView<?> p){}});
+        title=field(tr("Raportin otsikko","Название отчёта","Report title")); title.setText(tr("Yleinen tarkastusraportti","Общий отчёт об инспекции","General inspection report"));
+        object=field(tr("Kohteen nimi","Название объекта","Site name")); address=field(tr("Kohteen osoite","Адрес объекта","Site address")); customer=field(tr("Tilaaja","Заказчик","Client")); contractor=field(tr("Urakoitsija","Подрядчик","Contractor")); inspector=field(tr("Tarkastaja","Инспектор","Inspector"));
+        dateField=field(tr("Tarkastuspäivä (pp.kk.vvvv)","Дата инспекции (дд.мм.гггг)","Inspection date (dd.mm.yyyy)")); dateField.setText(new SimpleDateFormat("dd.MM.yyyy",Locale.forLanguageTag("fi-FI")).format(new Date()));
+        section(tr("Tarkastuksen kuvaus","Описание инспекции","Inspection scope")); scope=field(tr("Tarkastuksen tarkoitus ja laajuus","Цель и объём инспекции","Purpose and scope of inspection")); generalNotes=field(tr("Yleiset huomiot","Общие замечания","General notes"));
+        section(tr("Omat lisäkentät","Дополнительные поля","Custom fields"));
         LinearLayout customFieldsBox=new LinearLayout(this); customFieldsBox.setOrientation(LinearLayout.VERTICAL); form.addView(customFieldsBox);
-        form.addView(button("+ Lisää oma kenttä",()->addCustomField()));
+        form.addView(button(tr("+ Lisää oma kenttä","+ Добавить поле","+ Add custom field"),()->addCustomField()));
         this.customFieldsBox=customFieldsBox;
-        section("Havaitut puutteet ja virheet");
+        section(tr("Havaitut puutteet ja virheet","Выявленные дефекты и недостатки","Defects and deficiencies"));
         defectsBox=new LinearLayout(this); defectsBox.setOrientation(LinearLayout.VERTICAL); form.addView(defectsBox);
-        form.addView(button("+ Lisää havainto", this::addDefect));
-        section("Yhteenveto"); conclusion=field("Johtopäätökset ja tarvittavat toimenpiteet");
-        section("PDF:n alatunniste"); footerText=field("Esim. yrityksen nimi, puhelin, sähköposti ja verkkosivu"); footerText.setMinLines(2); footerText.setText("Tämä tarkastusraportti on laadittu havaintojen perusteella.");
-        section("Yrityksen / tarkastajan logo");
+        form.addView(button(tr("+ Lisää havainto","+ Добавить замечание","+ Add observation"), this::addDefect));
+        section(tr("Yhteenveto","Итог","Summary")); conclusion=field(tr("Johtopäätökset ja tarvittavat toimenpiteet","Выводы и необходимые меры","Conclusions and required actions"));
+        section(tr("PDF:n alatunniste","Нижний колонтитул PDF","PDF footer")); footerText=field(tr("Esim. yrityksen nimi, puhelin, sähköposti ja verkkosivu","Например: название компании, телефон, e-mail и сайт","E.g. company name, phone, email and website")); footerText.setMinLines(2); footerText.setText(tr("Tämä tarkastusraportti on laadittu havaintojen perusteella.","Этот отчёт составлен на основании проведённой инспекции.","This inspection report is based on the observations made."));
+        section(tr("Yrityksen / tarkastajan logo","Логотип компании / инспектора","Company / inspector logo"));
         LinearLayout logoRow=new LinearLayout(this); logoRow.setGravity(Gravity.CENTER_VERTICAL); form.addView(logoRow);
         logoPreview=new ImageView(this); logoPreview.setLayoutParams(new LinearLayout.LayoutParams(dp(90),dp(65))); logoPreview.setScaleType(ImageView.ScaleType.FIT_CENTER); logoRow.addView(logoPreview);
-        logoStatus=text("Logo ei ole vielä valittu",13,false); logoRow.addView(logoStatus,new LinearLayout.LayoutParams(0,-2,1));
-        form.addView(button("Valitse logo",()->pickGallery(-1)));
-        section("Allekirjoitus"); signatureView=new SignatureView(this); signatureView.setBackground(bg(Color.rgb(246,248,250))); form.addView(signatureView,new LinearLayout.LayoutParams(-1,dp(130)));
-        form.addView(button("Tyhjennä allekirjoitus",()->signatureView.clear()));
-        savedStatus=text("Luonnos tallennetaan tähän puhelimeen.",12,false); form.addView(savedStatus);
-        form.addView(button("Uusi raportti",this::newReport));
-        form.addView(button("Tallenna nykyinen raportti malliksi",this::saveAsTemplate));
-        form.addView(button("Käytä / hallitse malleja",this::showTemplates));
-        form.addView(button("Tallenna luonnos",this::saveDraft));
-        form.addView(button("Tallenna raportti arkistoon",this::archiveReport));
-        form.addView(button("Avaa arkisto",this::showArchive));
-        Button pdf=button("Luo PDF-raportti",this::createPdf); pdf.setTextColor(Color.WHITE); pdf.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(25,75,112))); form.addView(pdf);
+        logoStatus=text(tr("Logo ei ole vielä valittu","Логотип ещё не выбран","No logo selected yet"),13,false); logoRow.addView(logoStatus,new LinearLayout.LayoutParams(0,-2,1));
+        form.addView(button(tr("Valitse logo","Выбрать логотип","Choose logo"),()->pickGallery(-1)));
+        section(tr("Allekirjoitus","Подпись","Signature")); signatureView=new SignatureView(this); signatureView.setBackground(bg(Color.rgb(246,248,250))); form.addView(signatureView,new LinearLayout.LayoutParams(-1,dp(130)));
+        form.addView(button(tr("Tyhjennä allekirjoitus","Очистить подпись","Clear signature"),()->signatureView.clear()));
+        savedStatus=text(tr("Luonnos tallennetaan tähän puhelimeen.","Черновик сохраняется на этом телефоне.","Draft is saved on this phone."),12,false); form.addView(savedStatus);
+        form.addView(button(tr("Uusi raportti","Новый отчёт","New report"),this::newReport));
+        form.addView(button(tr("Tallenna nykyinen raportti malliksi","Сохранить текущий отчёт как шаблон","Save current report as template"),this::saveAsTemplate));
+        form.addView(button(tr("Käytä / hallitse malleja","Использовать / управлять шаблонами","Use / manage templates"),this::showTemplates));
+        form.addView(button(tr("Tallenna luonnos","Сохранить черновик","Save draft"),this::saveDraft));
+        form.addView(button(tr("Tallenna raportti arkistoon","Сохранить отчёт в архив","Save report to archive"),this::archiveReport));
+        form.addView(button(tr("Avaa arkisto","Открыть архив","Open archive"),this::showArchive));
+        Button pdf=button(tr("Luo PDF-raportti","Создать PDF-отчёт","Create PDF report"),this::createPdf); pdf.setTextColor(Color.WHITE); pdf.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(25,75,112))); form.addView(pdf);
+        uiReady=true;
     }
     void addCustomField(){ CustomField f=new CustomField(); customFields.add(f); renderCustomFields(); }
     void renderCustomFields(){
@@ -102,9 +104,9 @@ public class MainActivity extends Activity {
             final int index=i; CustomField f=customFields.get(i);
             LinearLayout card=new LinearLayout(this); card.setOrientation(LinearLayout.VERTICAL); card.setPadding(dp(10),dp(8),dp(10),dp(8)); card.setBackground(bg(Color.rgb(244,247,250)));
             LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2); cp.bottomMargin=dp(8); customFieldsBox.addView(card,cp);
-            EditText name=miniField("Kentän nimi / otsikko",f.name); card.addView(name); name.addTextChangedListener(watcher(v->f.name=v));
-            EditText value=miniField("Kirjoita tähän",f.value); value.setMinLines(2); value.setGravity(Gravity.TOP|Gravity.START); card.addView(value); value.addTextChangedListener(watcher(v->f.value=v));
-            card.addView(button("Poista kenttä",()->{customFields.remove(index);renderCustomFields();}));
+            EditText name=miniField(tr("Kentän nimi / otsikko","Название поля / заголовок","Field name / title"),f.name); card.addView(name); name.addTextChangedListener(watcher(v->f.name=v));
+            EditText value=miniField(tr("Kirjoita tähän","Введите текст","Enter text"),f.value); value.setMinLines(2); value.setGravity(Gravity.TOP|Gravity.START); card.addView(value); value.addTextChangedListener(watcher(v->f.value=v));
+            card.addView(button(tr("Poista kenttä","Удалить поле","Remove field"),()->{customFields.remove(index);renderCustomFields();}));
         }
     }
     void addDefect(){
@@ -113,19 +115,19 @@ public class MainActivity extends Activity {
     void renderDefects(){
         defectsBox.removeAllViews(); int n=0;
         for(Defect d:defects){ final int index=n++; LinearLayout card=new LinearLayout(this); card.setOrientation(LinearLayout.VERTICAL); card.setPadding(dp(12),dp(10),dp(12),dp(10)); GradientDrawable defectBg=bg(Color.rgb(244,247,250)); defectBg.setStroke(dp(2),Color.rgb(90,125,155)); card.setBackground(defectBg); LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2); cp.bottomMargin=dp(10); defectsBox.addView(card,cp);
-            TextView defectTitle=text("HAVAINTO "+(index+1),16,true); defectTitle.setTextColor(Color.rgb(26,59,86)); card.addView(defectTitle);
-            EditText place=miniField("Tila / sijainti",d.place); card.addView(place); place.addTextChangedListener(watcher(v->d.place=v));
-            EditText desc=miniField("Havaitun puutteen kuvaus",d.description); card.addView(desc); desc.addTextChangedListener(watcher(v->d.description=v));
-            EditText action=miniField("Suositeltu korjaustoimenpide",d.action); card.addView(action); action.addTextChangedListener(watcher(v->d.action=v));
+            TextView defectTitle=text(tr("HAVAINTO ","ЗАМЕЧАНИЕ ","OBSERVATION ")+(index+1),16,true); defectTitle.setTextColor(Color.rgb(26,59,86)); card.addView(defectTitle);
+            EditText place=miniField(tr("Tila / sijainti","Помещение / расположение","Room / location"),d.place); card.addView(place); place.addTextChangedListener(watcher(v->d.place=v));
+            EditText desc=miniField(tr("Havaitun puutteen kuvaus","Описание выявленного дефекта","Description of defect"),d.description); card.addView(desc); desc.addTextChangedListener(watcher(v->d.description=v));
+            EditText action=miniField(tr("Suositeltu korjaustoimenpide","Рекомендуемые меры по устранению","Recommended corrective action"),d.action); card.addView(action); action.addTextChangedListener(watcher(v->d.action=v));
             for(int pi=0;pi<d.photos.size();pi++){ final int photoIndex=pi; PhotoItem item=d.photos.get(pi); LinearLayout photoCard=new LinearLayout(this); photoCard.setOrientation(LinearLayout.VERTICAL); photoCard.setPadding(dp(6),dp(6),dp(6),dp(6)); photoCard.setBackground(bg(Color.WHITE)); LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(-1,-2); pp.topMargin=dp(8); card.addView(photoCard,pp);
                 photoCard.addView(text(tr("Valokuva ","Фото ","Photo ")+(pi+1),13,true)); ImageView iv=new ImageView(this); iv.setImageBitmap(item.annotated!=null?item.annotated:item.original); iv.setAdjustViewBounds(true); iv.setMaxHeight(dp(220)); iv.setScaleType(ImageView.ScaleType.FIT_CENTER); photoCard.addView(iv);
-                EditText comment=miniField("Valokuvan kommentti",item.comment); photoCard.addView(comment); comment.addTextChangedListener(watcher(v->item.comment=v));
-                LinearLayout pr=new LinearLayout(this); photoCard.addView(pr); Button mark=button("Merkitse kuva",()->editPhoto(item)); pr.addView(mark,new LinearLayout.LayoutParams(0,-2,1)); Button removePhoto=button("Poista kuva",()->{d.photos.remove(photoIndex);renderDefects();}); pr.addView(removePhoto,new LinearLayout.LayoutParams(0,-2,1));
+                EditText comment=miniField(tr("Valokuvan kommentti","Комментарий к фотографии","Photo comment"),item.comment); photoCard.addView(comment); comment.addTextChangedListener(watcher(v->item.comment=v));
+                LinearLayout pr=new LinearLayout(this); photoCard.addView(pr); Button mark=button(tr("Merkitse kuva","Разметить фото","Annotate photo"),()->editPhoto(item)); pr.addView(mark,new LinearLayout.LayoutParams(0,-2,1)); Button removePhoto=button(tr("Poista kuva","Удалить фото","Remove photo"),()->{d.photos.remove(photoIndex);renderDefects();}); pr.addView(removePhoto,new LinearLayout.LayoutParams(0,-2,1));
             }
             LinearLayout actions=new LinearLayout(this); card.addView(actions);
-            Button camera=button("Ota kuva",()->takePhoto(index)); actions.addView(camera,new LinearLayout.LayoutParams(0,-2,1));
-            Button gallery=button("Galleriasta",()->pickGallery(index)); actions.addView(gallery,new LinearLayout.LayoutParams(0,-2,1));
-            Button remove=button("Poista",()->{defects.remove(index);renderDefects();}); actions.addView(remove,new LinearLayout.LayoutParams(0,-2,1));
+            Button camera=button(tr("Ota kuva","Сделать фото","Take photo"),()->takePhoto(index)); actions.addView(camera,new LinearLayout.LayoutParams(0,-2,1));
+            Button gallery=button(tr("Galleriasta","Из галереи","From gallery"),()->pickGallery(index)); actions.addView(gallery,new LinearLayout.LayoutParams(0,-2,1));
+            Button remove=button(tr("Poista","Удалить","Remove"),()->{defects.remove(index);renderDefects();}); actions.addView(remove,new LinearLayout.LayoutParams(0,-2,1));
         }
     }
     interface TextChanged{void changed(String s);} TextWatcher watcher(TextChanged c){return new TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int count,int after){} public void onTextChanged(CharSequence s,int st,int before,int count){c.changed(s.toString());} public void afterTextChanged(Editable e){}};}
@@ -296,7 +298,7 @@ public class MainActivity extends Activity {
         if(!defects.isEmpty()){if(y+28>790){pdf.finishPage(page);page=pdf.startPage(new PdfDocument.PageInfo.Builder(595,842,++pageNo).create());c=page.getCanvas();y=48;}p.setColor(Color.rgb(90,125,155));p.setStrokeWidth(1.5f);c.drawLine(40,y+5,555,y+5,p);y+=22;}
         for(int i=0;i<defects.size();i++){Defect d=defects.get(i);if(y>700){pdf.finishPage(page);page=pdf.startPage(new PdfDocument.PageInfo.Builder(595,842,++pageNo).create());c=page.getCanvas();y=48;}p.setTypeface(Typeface.DEFAULT_BOLD);p.setColor(Color.rgb(26,59,86));p.setTextSize(13);y+=12;c.drawText(tr("HAVAINTO ","ЗАМЕЧАНИЕ ","OBSERVATION ")+(i+1),40,y,p);y+=18;p.setTypeface(Typeface.DEFAULT);p.setTextSize(10);p.setColor(Color.DKGRAY);y=drawWrapped(c,tr("Sijainti: ","Место: ","Location: ")+d.place,40,y,510,p,13);y=drawWrapped(c,tr("Kuvaus: ","Описание: ","Description: ")+d.description,40,y,510,p,13);y=drawWrapped(c,tr("Toimenpide: ","Рекомендуемое действие: ","Recommended action: ")+d.action,40,y,510,p,13);for(int pi=0;pi<d.photos.size();pi++){PhotoItem item=d.photos.get(pi);Bitmap source=item.annotated!=null?item.annotated:item.original;if(source!=null){float imageScale=Math.min(300f/source.getWidth(),220f/source.getHeight());float imageW=source.getWidth()*imageScale,imageH=source.getHeight()*imageScale;p.setFilterBitmap(true);p.setDither(true);p.setTypeface(Typeface.DEFAULT_BOLD);p.setTextSize(10);int commentHeight=13+wrappedHeight(item.comment,195,p,13);int blockHeight=Math.max((int)Math.ceil(imageH)+18,commentHeight+12);if(y+blockHeight+12>815){pdf.finishPage(page);page=pdf.startPage(new PdfDocument.PageInfo.Builder(595,842,++pageNo).create());c=page.getCanvas();y=45;}p.setColor(Color.rgb(26,59,86));p.setTypeface(Typeface.DEFAULT_BOLD);p.setTextSize(10);c.drawText("Valokuva "+(pi+1),40,y+11,p);c.drawBitmap(source,null,new RectF(40,y+18,40+imageW,y+18+imageH),p);p.setTypeface(Typeface.DEFAULT);p.setColor(Color.DKGRAY);p.setTextSize(10);drawWrapped(c,item.comment==null?"":item.comment,360,y+12,195,p,13);y+=blockHeight+14;}}if(i<defects.size()-1){if(y+18>750){pdf.finishPage(page);page=pdf.startPage(new PdfDocument.PageInfo.Builder(595,842,++pageNo).create());c=page.getCanvas();y=48;}p.setColor(Color.rgb(170,178,186));p.setStrokeWidth(0.7f);c.drawLine(40,y+5,555,y+5,p);y+=18;}}
         if(!defects.isEmpty()){if(y+22>800){pdf.finishPage(page);page=pdf.startPage(new PdfDocument.PageInfo.Builder(595,842,++pageNo).create());c=page.getCanvas();y=48;}p.setColor(Color.rgb(90,125,155));p.setStrokeWidth(1.5f);c.drawLine(40,y+5,555,y+5,p);y+=20;}
-        if(y>620){pdf.finishPage(page);page=pdf.startPage(new PdfDocument.PageInfo.Builder(595,842,++pageNo).create());c=page.getCanvas();y=45;}p.setTypeface(Typeface.DEFAULT_BOLD);p.setColor(Color.rgb(26,59,86));p.setTextSize(13);y+=15;c.drawText(tr("YHTEENVETO","ЗАКЛЮЧЕНИЕ","CONCLUSION"),40,y,p);y+=18;p.setTypeface(Typeface.DEFAULT);p.setTextSize(10);p.setColor(Color.DKGRAY);y=drawWrapped(c,val(conclusion),40,y,510,p,13);if(y>650){pdf.finishPage(page);page=pdf.startPage(new PdfDocument.PageInfo.Builder(595,842,++pageNo).create());c=page.getCanvas();y=45;}y+=20;c.drawText(tr("Tarkastajan allekirjoitus:","Подпись инспектора:","Inspector’s signature:"),40,y,p);y+=10;if(!signatureView.isEmpty()){Bitmap sig=signatureView.bitmap();Bitmap s=scaled(sig,230,75);c.drawBitmap(s,40,y,p);}else{c.drawLine(40,y+55,260,y+55,p);}drawPdfFooter(c,p,val(footerText));pdf.finishPage(page);FileOutputStream os=new FileOutputStream(out);pdf.writeTo(os);os.close();pdf.close();sharePdf(out); }catch(Exception e){toast("PDF:n luominen epäonnistui: "+e.getMessage());}}
+        if(y>620){pdf.finishPage(page);page=pdf.startPage(new PdfDocument.PageInfo.Builder(595,842,++pageNo).create());c=page.getCanvas();y=45;}p.setTypeface(Typeface.DEFAULT_BOLD);p.setColor(Color.rgb(26,59,86));p.setTextSize(13);y+=15;c.drawText(tr("YHTEENVETO","ЗАКЛЮЧЕНИЕ","CONCLUSION"),40,y,p);y+=18;p.setTypeface(Typeface.DEFAULT);p.setTextSize(10);p.setColor(Color.DKGRAY);y=drawWrapped(c,val(conclusion),40,y,510,p,13);if(y>650){pdf.finishPage(page);page=pdf.startPage(new PdfDocument.PageInfo.Builder(595,842,++pageNo).create());c=page.getCanvas();y=45;}y+=20;c.drawText(tr("Tarkastajan allekirjoitus:","Подпись инспектора:","Inspector’s signature:"),40,y,p);y+=10;if(!signatureView.isEmpty()){Bitmap sig=signatureView.bitmap();Bitmap s=scaled(sig,220,62);Paint signaturePaint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);c.drawBitmap(s,40,y,signaturePaint);y+=Math.max(62,s.getHeight())+8;}else{c.drawLine(40,y+55,260,y+55,p);}drawPdfFooter(c,p,val(footerText));pdf.finishPage(page);FileOutputStream os=new FileOutputStream(out);pdf.writeTo(os);os.close();pdf.close();sharePdf(out); }catch(Exception e){toast("PDF:n luominen epäonnistui: "+e.getMessage());}}
     void drawPdfFooter(Canvas c,Paint p,String value){
         if(value==null||value.trim().isEmpty())return;
         p.setColor(Color.rgb(170,178,186));p.setStrokeWidth(0.7f);c.drawLine(40,758,555,758,p);
@@ -311,20 +313,20 @@ public class MainActivity extends Activity {
     Uri androidxUri(File f){return androidx.core.content.FileProvider.getUriForFile(this,getPackageName()+".provider",f);}
 
     class SignatureView extends View {
-        Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG); Path path=new Path(); Bitmap saved;
-        public SignatureView(Context c){super(c);paint.setColor(Color.BLACK);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(2.2f));paint.setStrokeCap(Paint.Cap.ROUND);paint.setStrokeJoin(Paint.Join.ROUND);setLayerType(View.LAYER_TYPE_SOFTWARE,null);}
+        Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG); Path path=new Path(); Bitmap saved; float lastX,lastY;
+        public SignatureView(Context c){super(c);paint.setColor(Color.BLACK);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(2.8f));paint.setStrokeCap(Paint.Cap.ROUND);paint.setStrokeJoin(Paint.Join.ROUND);setLayerType(View.LAYER_TYPE_SOFTWARE,null);}
         protected void onDraw(Canvas c){super.onDraw(c);if(saved!=null)c.drawBitmap(saved,null,new Rect(0,0,getWidth(),getHeight()),null);c.drawPath(path,paint);}
         public boolean onTouchEvent(MotionEvent e){float x=e.getX(),y=e.getY();switch(e.getActionMasked()){
-            case MotionEvent.ACTION_DOWN: if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(true);path.moveTo(x,y);invalidate();return true;
-            case MotionEvent.ACTION_MOVE: for(int i=0;i<e.getHistorySize();i++)path.lineTo(e.getHistoricalX(i),e.getHistoricalY(i));path.lineTo(x,y);invalidate();return true;
-            case MotionEvent.ACTION_UP: path.lineTo(x,y);invalidate();if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(false);performClick();return true;
+            case MotionEvent.ACTION_DOWN: if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(true);path.moveTo(x,y);lastX=x;lastY=y;invalidate();return true;
+            case MotionEvent.ACTION_MOVE: for(int i=0;i<e.getHistorySize();i++){float hx=e.getHistoricalX(i),hy=e.getHistoricalY(i);path.quadTo(lastX,lastY,(lastX+hx)/2f,(lastY+hy)/2f);lastX=hx;lastY=hy;}path.quadTo(lastX,lastY,(lastX+x)/2f,(lastY+y)/2f);lastX=x;lastY=y;invalidate();return true;
+            case MotionEvent.ACTION_UP: path.quadTo(lastX,lastY,x,y);invalidate();if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(false);performClick();return true;
             case MotionEvent.ACTION_CANCEL: if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(false);invalidate();return true;
         }return true;}
         @Override public boolean performClick(){super.performClick();return true;}
         void clear(){path.reset();saved=null;invalidate();}
         void setBitmap(Bitmap b){saved=transparentSignature(b);invalidate();}
         boolean isEmpty(){return path.isEmpty()&&saved==null;}
-        Bitmap bitmap(){Bitmap b=Bitmap.createBitmap(Math.max(1,getWidth()),Math.max(1,getHeight()),Bitmap.Config.ARGB_8888);Canvas c=new Canvas(b);if(saved!=null)c.drawBitmap(saved,null,new Rect(0,0,b.getWidth(),b.getHeight()),null);c.drawPath(path,paint);return b;}
+        Bitmap bitmap(){Bitmap full=Bitmap.createBitmap(Math.max(1,getWidth()),Math.max(1,getHeight()),Bitmap.Config.ARGB_8888);Canvas c=new Canvas(full);Paint exportPaint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);if(saved!=null)c.drawBitmap(saved,null,new Rect(0,0,full.getWidth(),full.getHeight()),exportPaint);c.drawPath(path,paint);int w=full.getWidth(),h=full.getHeight();int[] px=new int[w*h];full.getPixels(px,0,w,0,0,w,h);int left=w,top=h,right=-1,bottom=-1;for(int yy=0;yy<h;yy++)for(int xx=0;xx<w;xx++)if(Color.alpha(px[yy*w+xx])>12){if(xx<left)left=xx;if(xx>right)right=xx;if(yy<top)top=yy;if(yy>bottom)bottom=yy;}if(right<left||bottom<top)return full;int pad=dp(10);left=Math.max(0,left-pad);top=Math.max(0,top-pad);right=Math.min(w-1,right+pad);bottom=Math.min(h-1,bottom+pad);Bitmap crop=Bitmap.createBitmap(full,left,top,right-left+1,bottom-top+1);full.recycle();return crop;}
     }
     Bitmap transparentSignature(Bitmap source){if(source==null)return null;Bitmap out=source.copy(Bitmap.Config.ARGB_8888,true);int w=out.getWidth(),h=out.getHeight();int[] px=new int[w*h];out.getPixels(px,0,w,0,0,w,h);for(int i=0;i<px.length;i++){int color=px[i],r=Color.red(color),g=Color.green(color),b=Color.blue(color);int lum=(r*299+g*587+b*114)/1000;int alpha=Color.alpha(color)*(255-lum)/255;if(alpha<10)alpha=0;px[i]=Color.argb(alpha,0,0,0);}out.setPixels(px,0,w,0,0,w,h);return out;}
     class AnnotationView extends View {
