@@ -211,19 +211,19 @@ public class MainActivity extends Activity {
     void editPhoto(PhotoItem photo){
         AnnotationView editor=new AnnotationView(this,photo.annotated!=null?photo.annotated:photo.original);
         LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(12),dp(8),dp(12),dp(8));
-        TextView hint=text("Valitse merkintätyökalu ja osoita puutetta kuvassa. Alkuperäinen kuva säilyy erillään.",13,false);box.addView(hint);
+        TextView hint=text(tr("Valitse merkintätyökalu ja osoita puutetta kuvassa. Alkuperäinen kuva säilyy erillään.","Выберите инструмент и отметьте дефект на фотографии. Оригинал сохраняется отдельно.","Choose an annotation tool and mark the defect. The original photo is kept separately."),13,false);box.addView(hint);
         box.addView(editor,new LinearLayout.LayoutParams(-1,dp(330)));
         LinearLayout tools1=new LinearLayout(this);box.addView(tools1);
-        Button free=button("Piirrä",()->editor.setMode(AnnotationView.FREE));tools1.addView(free,new LinearLayout.LayoutParams(0,-2,1));
-        Button arrow=button("Nuoli",()->editor.setMode(AnnotationView.ARROW));tools1.addView(arrow,new LinearLayout.LayoutParams(0,-2,1));
+        Button free=button(tr("Piirrä","Рисовать","Draw"),()->editor.setMode(AnnotationView.FREE));tools1.addView(free,new LinearLayout.LayoutParams(0,-2,1));
+        Button arrow=button(tr("Nuoli","Стрелка","Arrow"),()->editor.setMode(AnnotationView.ARROW));tools1.addView(arrow,new LinearLayout.LayoutParams(0,-2,1));
         LinearLayout tools2=new LinearLayout(this);box.addView(tools2);
-        Button circle=button("Ympyrä",()->editor.setMode(AnnotationView.CIRCLE));tools2.addView(circle,new LinearLayout.LayoutParams(0,-2,1));
-        Button rect=button("Suorakulmio",()->editor.setMode(AnnotationView.RECT));tools2.addView(rect,new LinearLayout.LayoutParams(0,-2,1));
-        LinearLayout tools3=new LinearLayout(this);box.addView(tools3); Button label=button("Tekstimerkintä",()->editor.setMode(AnnotationView.TEXT));tools3.addView(label,new LinearLayout.LayoutParams(-1,-2,1));
+        Button circle=button(tr("Ympyrä","Круг","Circle"),()->editor.setMode(AnnotationView.CIRCLE));tools2.addView(circle,new LinearLayout.LayoutParams(0,-2,1));
+        Button rect=button(tr("Suorakulmio","Прямоугольник","Rectangle"),()->editor.setMode(AnnotationView.RECT));tools2.addView(rect,new LinearLayout.LayoutParams(0,-2,1));
+        LinearLayout tools3=new LinearLayout(this);box.addView(tools3); Button label=button(tr("Tekstimerkintä","Текстовая отметка","Text label"),()->editor.setMode(AnnotationView.TEXT));tools3.addView(label,new LinearLayout.LayoutParams(-1,-2,1));
         LinearLayout row=new LinearLayout(this);box.addView(row);
-        Button clear=button("Tyhjennä",editor::clearMarks);row.addView(clear,new LinearLayout.LayoutParams(0,-2,1));
-        Button save=button("Tallenna",()->{photo.annotated=editor.result();renderDefects();});row.addView(save,new LinearLayout.LayoutParams(0,-2,1));
-        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Kuvan merkinnät").setView(box).setNegativeButton("Sulje",(a,b)->{}).create();save.setOnClickListener(v->{photo.annotated=editor.result();dialog.dismiss();renderDefects();});dialog.show();
+        Button clear=button(tr("Tyhjennä","Очистить","Clear"),editor::clearMarks);row.addView(clear,new LinearLayout.LayoutParams(0,-2,1));
+        Button save=button(tr("Tallenna","Сохранить","Save"),()->{photo.annotated=editor.result();renderDefects();});row.addView(save,new LinearLayout.LayoutParams(0,-2,1));
+        AlertDialog dialog=new AlertDialog.Builder(this).setTitle(tr("Kuvan merkinnät","Разметка фотографии","Photo annotations")).setView(box).setNegativeButton(tr("Sulje","Закрыть","Close"),(a,b)->{}).create();save.setOnClickListener(v->{photo.annotated=editor.result();dialog.dismiss();renderDefects();});dialog.show();
     }
     String val(EditText e){return e.getText().toString().trim();}
     org.json.JSONObject toJson(){org.json.JSONObject j=new org.json.JSONObject();try{j.put("language",reportLanguage);j.put("title",val(title));j.put("object",val(object));j.put("address",val(address));j.put("customer",val(customer));j.put("contractor",val(contractor));j.put("inspector",val(inspector));j.put("date",val(dateField));j.put("scope",val(scope));j.put("notes",val(generalNotes));j.put("conclusion",val(conclusion));j.put("footer",val(footerText));org.json.JSONArray custom=new org.json.JSONArray();for(CustomField cf:customFields){org.json.JSONObject x=new org.json.JSONObject();x.put("name",cf.name);x.put("value",cf.value);custom.put(x);}j.put("customFields",custom);org.json.JSONArray a=new org.json.JSONArray();for(int i=0;i<defects.size();i++){Defect d=defects.get(i);org.json.JSONObject x=new org.json.JSONObject();x.put("place",d.place);x.put("description",d.description);x.put("action",d.action);org.json.JSONArray photos=new org.json.JSONArray();for(int pi=0;pi<d.photos.size();pi++){PhotoItem item=d.photos.get(pi);org.json.JSONObject ph=new org.json.JSONObject();ph.put("comment",item.comment);String fn="photo_"+i+"_"+pi+".jpg";String originalFn="photo_original_"+i+"_"+pi+".jpg";if(item.annotated!=null){saveBitmap(item.annotated,new File(workDir,fn));ph.put("annotated",fn);}if(item.original!=null){saveBitmap(item.original,new File(workDir,originalFn));ph.put("original",originalFn);}photos.put(ph);}x.put("photos",photos);a.put(x);}j.put("defects",a);if(!signatureView.isEmpty()){savePng(signatureView.bitmap(),new File(workDir,"signature.png"));j.put("signature","signature.png");}if(logoBitmap!=null){saveBitmap(logoBitmap,new File(workDir,"logo.png"));j.put("logo","logo.png");}return j;}catch(Exception e){return j;}}
@@ -235,25 +235,25 @@ public class MainActivity extends Activity {
     org.json.JSONArray readTemplates(){try{return new org.json.JSONArray(getSharedPreferences("templates",0).getString("items","[]"));}catch(Exception e){return new org.json.JSONArray();}}
     void writeTemplates(org.json.JSONArray a){getSharedPreferences("templates",0).edit().putString("items",a.toString()).apply();}
     void saveAsTemplate(){
-        EditText name=new EditText(this);name.setSingleLine(true);name.setHint("Mallin nimi");name.setText(val(title).isEmpty()?"Uusi mallipohja":val(title));
-        new AlertDialog.Builder(this).setTitle("Tallenna raporttipohjaksi").setMessage("Malliin tallennetaan raportin rakenne, otsikko, oletustiedot, omat kentät, logo ja alatunniste. Havaintoja, valokuvia, allekirjoitusta ja kohdekohtaisia tietoja ei tallenneta.").setView(name).setNegativeButton("Peruuta",null).setPositiveButton("Tallenna",(d,w)->{
-            String label=name.getText().toString().trim();if(label.isEmpty()){toast("Anna mallille nimi");return;}
+        EditText name=new EditText(this);name.setSingleLine(true);name.setHint(tr("Mallin nimi","Название шаблона","Template name"));name.setText(val(title).isEmpty()?tr("Uusi mallipohja","Новый шаблон","New template"):val(title));
+        new AlertDialog.Builder(this).setTitle(tr("Tallenna raporttipohjaksi","Сохранить как шаблон отчёта","Save as report template")).setMessage(tr("Malliin tallennetaan raportin rakenne, otsikko, oletustiedot, omat kentät, logo ja alatunniste. Havaintoja, valokuvia, allekirjoitusta ja kohdekohtaisia tietoja ei tallenneta.","В шаблон сохраняются структура отчёта, заголовок, данные по умолчанию, дополнительные поля, логотип и нижний колонтитул. Замечания, фотографии, подпись и данные конкретного объекта не сохраняются.","The template stores the report structure, title, default details, custom fields, logo and footer. Observations, photos, signature and site-specific details are not saved.")).setView(name).setNegativeButton(tr("Peruuta","Отмена","Cancel"),null).setPositiveButton(tr("Tallenna","Сохранить","Save"),(d,w)->{
+            String label=name.getText().toString().trim();if(label.isEmpty()){toast(tr("Anna mallille nimi","Укажите название шаблона","Enter a template name"));return;}
             try{
                 String id=String.valueOf(System.currentTimeMillis());org.json.JSONObject t=new org.json.JSONObject();
                 t.put("id",id);t.put("name",label);t.put("language",reportLanguage);t.put("title",val(title));t.put("customer",val(customer));t.put("contractor",val(contractor));t.put("inspector",val(inspector));t.put("scope",val(scope));t.put("footer",val(footerText));
                 org.json.JSONArray fields=new org.json.JSONArray();for(CustomField cf:customFields){if(!cf.name.trim().isEmpty()){org.json.JSONObject x=new org.json.JSONObject();x.put("name",cf.name);x.put("value","");fields.put(x);}}t.put("customFields",fields);
                 if(logoBitmap!=null){String logo="template_"+id+"_logo.png";savePng(logoBitmap,new File(templatesDir(),logo));t.put("logo",logo);}
-                org.json.JSONArray all=readTemplates();all.put(t);writeTemplates(all);toast("Mallipohja tallennettu");
-            }catch(Exception e){toast("Mallin tallennus epäonnistui: "+e.getMessage());}
+                org.json.JSONArray all=readTemplates();all.put(t);writeTemplates(all);toast(tr("Mallipohja tallennettu","Шаблон сохранён","Template saved"));
+            }catch(Exception e){toast(tr("Mallin tallennus epäonnistui: ","Не удалось сохранить шаблон: ","Could not save template: ")+e.getMessage());}
         }).show();
     }
     void showTemplates(){
-        org.json.JSONArray all=readTemplates();if(all.length()==0){toast("Tallennettuja mallipohjia ei ole");return;}
+        org.json.JSONArray all=readTemplates();if(all.length()==0){toast(tr("Tallennettuja mallipohjia ei ole","Сохранённых шаблонов нет","No saved templates"));return;}
         String[] labels=new String[all.length()];for(int i=0;i<all.length();i++){org.json.JSONObject t=all.optJSONObject(i);labels[i]=t==null?"Tuntematon malli":t.optString("name","Nimetön malli");}
-        new AlertDialog.Builder(this).setTitle("Raporttipohjat").setItems(labels,(dialog,which)->{
+        new AlertDialog.Builder(this).setTitle(tr("Raporttipohjat","Шаблоны отчётов","Report templates")).setItems(labels,(dialog,which)->{
             org.json.JSONObject selected=all.optJSONObject(which);if(selected==null)return;
-            new AlertDialog.Builder(this).setTitle(selected.optString("name","Raporttipohja")).setItems(new String[]{"Käytä mallia","Nimeä uudelleen","Poista"},(d,action)->{
-                if(action==0)new AlertDialog.Builder(this).setTitle("Käytetäänkö mallia?").setMessage("Nykyisen lomakkeen tiedot korvataan mallin asetuksilla. Tallentamattomat tiedot menetetään.").setNegativeButton("Peruuta",null).setPositiveButton("Käytä",(x,y)->applyTemplate(selected)).show();
+            new AlertDialog.Builder(this).setTitle(selected.optString("name","Raporttipohja")).setItems(new String[]{tr("Käytä mallia","Использовать шаблон","Use template"),tr("Nimeä uudelleen","Переименовать","Rename"),tr("Poista","Удалить","Delete")},(d,action)->{
+                if(action==0)new AlertDialog.Builder(this).setTitle(tr("Käytetäänkö mallia?","Применить шаблон?","Apply template?")).setMessage(tr("Nykyisen lomakkeen tiedot korvataan mallin asetuksilla. Tallentamattomat tiedot menetetään.","Текущие данные формы будут заменены настройками шаблона. Несохранённые данные будут потеряны.","Current form data will be replaced by the template settings. Unsaved data will be lost.")).setNegativeButton(tr("Peruuta","Отмена","Cancel"),null).setPositiveButton(tr("Käytä","Применить","Apply"),(x,y)->applyTemplate(selected)).show();
                 else if(action==1)renameTemplate(selected);
                 else deleteTemplate(selected);
             }).setNegativeButton("Sulje",null).show();
@@ -265,18 +265,18 @@ public class MainActivity extends Activity {
         customFields.clear();org.json.JSONArray fields=t.optJSONArray("customFields");if(fields!=null)for(int i=0;i<fields.length();i++){org.json.JSONObject x=fields.optJSONObject(i);if(x!=null){CustomField cf=new CustomField();cf.name=x.optString("name");cf.value="";customFields.add(cf);}}renderCustomFields();
         defects.clear();renderDefects();signatureView.clear();logoBitmap=null;logoPreview.setImageDrawable(null);logoStatus.setText("Logo ei ole vielä valittu");
         String logo=t.optString("logo","");if(!logo.isEmpty()){File imageFile=new File(templatesDir(),logo);if(imageFile.exists()){logoBitmap=BitmapFactory.decodeFile(imageFile.getAbsolutePath());logoPreview.setImageBitmap(logoBitmap);logoStatus.setText("Logo valittu");}}
-        getSharedPreferences("draft",0).edit().remove("json").apply();savedStatus.setText("Mallipohja käytössä — täytä raportin tiedot");toast("Mallipohja otettu käyttöön");
+        getSharedPreferences("draft",0).edit().remove("json").apply();savedStatus.setText(tr("Mallipohja käytössä — täytä raportin tiedot","Шаблон применён — заполните данные отчёта","Template applied — fill in the report details"));toast(tr("Mallipohja otettu käyttöön","Шаблон применён","Template applied"));
     }
     void renameTemplate(org.json.JSONObject target){
         EditText name=new EditText(this);name.setSingleLine(true);name.setText(target.optString("name",""));
-        new AlertDialog.Builder(this).setTitle("Nimeä mallipohja uudelleen").setView(name).setNegativeButton("Peruuta",null).setPositiveButton("Tallenna",(d,w)->{
-            String value=name.getText().toString().trim();if(value.isEmpty()){toast("Anna mallille nimi");return;}
-            try{org.json.JSONArray all=readTemplates();for(int i=0;i<all.length();i++){org.json.JSONObject t=all.optJSONObject(i);if(t!=null&&t.optString("id").equals(target.optString("id"))){t.put("name",value);break;}}writeTemplates(all);toast("Mallin nimi päivitetty");}catch(Exception e){toast("Nimeä ei voitu muuttaa");}
+        new AlertDialog.Builder(this).setTitle(tr("Nimeä mallipohja uudelleen","Переименовать шаблон","Rename template")).setView(name).setNegativeButton(tr("Peruuta","Отмена","Cancel"),null).setPositiveButton(tr("Tallenna","Сохранить","Save"),(d,w)->{
+            String value=name.getText().toString().trim();if(value.isEmpty()){toast(tr("Anna mallille nimi","Укажите название шаблона","Enter a template name"));return;}
+            try{org.json.JSONArray all=readTemplates();for(int i=0;i<all.length();i++){org.json.JSONObject t=all.optJSONObject(i);if(t!=null&&t.optString("id").equals(target.optString("id"))){t.put("name",value);break;}}writeTemplates(all);toast(tr("Mallin nimi päivitetty","Название шаблона обновлено","Template name updated"));}catch(Exception e){toast(tr("Nimeä ei voitu muuttaa","Не удалось изменить название","Could not rename template"));}
         }).show();
     }
     void deleteTemplate(org.json.JSONObject target){
-        new AlertDialog.Builder(this).setTitle("Poistetaanko mallipohja?").setMessage(target.optString("name","")).setNegativeButton("Peruuta",null).setPositiveButton("Poista",(d,w)->{
-            org.json.JSONArray old=readTemplates(),next=new org.json.JSONArray();for(int i=0;i<old.length();i++){org.json.JSONObject t=old.optJSONObject(i);if(t==null)continue;if(t.optString("id").equals(target.optString("id"))){String logo=t.optString("logo","");if(!logo.isEmpty())new File(templatesDir(),logo).delete();}else next.put(t);}writeTemplates(next);toast("Mallipohja poistettu");
+        new AlertDialog.Builder(this).setTitle(tr("Poistetaanko mallipohja?","Удалить шаблон?","Delete template?")).setMessage(target.optString("name","")).setNegativeButton(tr("Peruuta","Отмена","Cancel"),null).setPositiveButton(tr("Poista","Удалить","Delete"),(d,w)->{
+            org.json.JSONArray old=readTemplates(),next=new org.json.JSONArray();for(int i=0;i<old.length();i++){org.json.JSONObject t=old.optJSONObject(i);if(t==null)continue;if(t.optString("id").equals(target.optString("id"))){String logo=t.optString("logo","");if(!logo.isEmpty())new File(templatesDir(),logo).delete();}else next.put(t);}writeTemplates(next);toast(tr("Mallipohja poistettu","Шаблон удалён","Template deleted"));
         }).show();
     }
     File archiveDir(){File d=new File(getFilesDir(),"reports");if(!d.exists())d.mkdirs();return d;}
@@ -335,7 +335,7 @@ public class MainActivity extends Activity {
         Bitmap base; Paint imagePaint=new Paint(3), markPaint=new Paint(3); ArrayList<Mark> marks=new ArrayList<>(); Mark active;
         int mode=FREE; float sx,sy,scaleFactor;
         AnnotationView(Context c,Bitmap b){super(c);base=b;markPaint.setColor(Color.RED);markPaint.setStyle(Paint.Style.STROKE);markPaint.setStrokeWidth(Math.max(7f,Math.min(base.getWidth(),base.getHeight())*0.006f));markPaint.setStrokeCap(Paint.Cap.ROUND);markPaint.setStrokeJoin(Paint.Join.ROUND);setBackgroundColor(Color.rgb(235,238,241));}
-        void setMode(int m){mode=m;toast(m==FREE?"Piirtotila":m==ARROW?"Nuolityökalu":m==CIRCLE?"Ympyrätyökalu":m==RECT?"Suorakulmiotyökalu":"Tekstimerkintä");}
+        void setMode(int m){mode=m;toast(m==FREE?tr("Piirtotila","Режим рисования","Draw mode"):m==ARROW?tr("Nuolityökalu","Инструмент стрелка","Arrow tool"):m==CIRCLE?tr("Ympyrätyökalu","Инструмент круга","Circle tool"):m==RECT?tr("Suorakulmiotyökalu","Инструмент прямоугольника","Rectangle tool"):tr("Tekstimerkintä","Текстовая отметка","Text label"));}
         protected void onDraw(Canvas canvas){super.onDraw(canvas);if(base==null)return;float sc=Math.min((float)getWidth()/base.getWidth(),(float)getHeight()/base.getHeight());float w=base.getWidth()*sc,h=base.getHeight()*sc;float left=(getWidth()-w)/2f,top=(getHeight()-h)/2f;canvas.save();canvas.translate(left,top);canvas.scale(sc,sc);canvas.drawBitmap(base,0,0,imagePaint);for(Mark m:marks)drawMark(canvas,m);if(active!=null)drawMark(canvas,active);canvas.restore();sx=left;sy=top;scaleFactor=sc;}
         void drawMark(Canvas c,Mark m){
             if(m.type==FREE){c.drawPath(m.path,markPaint);return;}
@@ -345,7 +345,7 @@ public class MainActivity extends Activity {
             else if(m.type==RECT)c.drawRect(l,t,r,b,markPaint);
             else if(m.type==ARROW){c.drawLine(m.x1,m.y1,m.x2,m.y2,markPaint);float angle=(float)Math.atan2(m.y2-m.y1,m.x2-m.x1);float len=Math.min(base.getWidth(),base.getHeight())*0.035f;float a1=angle-(float)Math.PI/6,a2=angle+(float)Math.PI/6;c.drawLine(m.x2,m.y2,m.x2-len*(float)Math.cos(a1),m.y2-len*(float)Math.sin(a1),markPaint);c.drawLine(m.x2,m.y2,m.x2-len*(float)Math.cos(a2),m.y2-len*(float)Math.sin(a2),markPaint);}
         }
-        public boolean onTouchEvent(android.view.MotionEvent e){float x=(e.getX()-sx)/Math.max(0.001f,scaleFactor),y=(e.getY()-sy)/Math.max(0.001f,scaleFactor);x=Math.max(0,Math.min(base.getWidth(),x));y=Math.max(0,Math.min(base.getHeight(),y));if(e.getAction()==MotionEvent.ACTION_DOWN){active=new Mark();active.type=mode;active.x1=x;active.y1=y;active.x2=x;active.y2=y;if(mode==FREE)active.path.moveTo(x,y);invalidate();return true;}if(e.getAction()==MotionEvent.ACTION_MOVE&&active!=null){active.x2=x;active.y2=y;if(mode==FREE)active.path.lineTo(x,y);invalidate();return true;}if(e.getAction()==MotionEvent.ACTION_UP&&active!=null){active.x2=x;active.y2=y;if(mode==FREE)active.path.lineTo(x,y);if(mode==TEXT){Mark target=active;EditText input=new EditText(MainActivity.this);input.setHint("Teksti kuvaan");new AlertDialog.Builder(MainActivity.this).setTitle("Tekstimerkintä").setView(input).setNegativeButton("Peruuta",(d,w)->{}).setPositiveButton("Lisää",(d,w)->{target.label=input.getText().toString().trim();if(!target.label.isEmpty())marks.add(target);invalidate();}).show();}else marks.add(active);active=null;invalidate();return true;}return true;}
+        public boolean onTouchEvent(android.view.MotionEvent e){float x=(e.getX()-sx)/Math.max(0.001f,scaleFactor),y=(e.getY()-sy)/Math.max(0.001f,scaleFactor);x=Math.max(0,Math.min(base.getWidth(),x));y=Math.max(0,Math.min(base.getHeight(),y));if(e.getAction()==MotionEvent.ACTION_DOWN){active=new Mark();active.type=mode;active.x1=x;active.y1=y;active.x2=x;active.y2=y;if(mode==FREE)active.path.moveTo(x,y);invalidate();return true;}if(e.getAction()==MotionEvent.ACTION_MOVE&&active!=null){active.x2=x;active.y2=y;if(mode==FREE)active.path.lineTo(x,y);invalidate();return true;}if(e.getAction()==MotionEvent.ACTION_UP&&active!=null){active.x2=x;active.y2=y;if(mode==FREE)active.path.lineTo(x,y);if(mode==TEXT){Mark target=active;EditText input=new EditText(MainActivity.this);input.setHint(tr("Teksti kuvaan","Текст на фотографии","Text on photo"));new AlertDialog.Builder(MainActivity.this).setTitle(tr("Tekstimerkintä","Текстовая отметка","Text label")).setView(input).setNegativeButton(tr("Peruuta","Отмена","Cancel"),(d,w)->{}).setPositiveButton(tr("Lisää","Добавить","Add"),(d,w)->{target.label=input.getText().toString().trim();if(!target.label.isEmpty())marks.add(target);invalidate();}).show();}else marks.add(active);active=null;invalidate();return true;}return true;}
         void clearMarks(){marks.clear();active=null;invalidate();}
         Bitmap result(){Bitmap out=base.copy(Bitmap.Config.ARGB_8888,true);Canvas c=new Canvas(out);for(Mark m:marks)drawMark(c,m);return out;}
     }
